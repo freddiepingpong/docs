@@ -108,9 +108,9 @@ Expose a *function* through the Cloud so that it can be called with `POST /v1/de
 ```cpp
 // SYNTAX TO REGISTER A CLOUD FUNCTION
 bool success = Particle.function("funcKey", funcName);
-//                ^
-//                |
-//     (max of 12 characters long)
+//                                  ^
+//                                  |
+//                     (max of 12 characters long)
 ```
 
 Currently the application supports the creation of up to 4 different cloud functions.
@@ -5748,12 +5748,15 @@ Power Conditions and how they relate to Backup RAM initilization and data retent
 
 | Power Down Method | Power Up Method | When VIN Powered | When VBAT Powered | SRAM Initialized | SRAM Retained |
 | -: | :- | :-: | :-: | :-: | :-: |
-| Power removed on VIN and VBAT | Power applied on VIN | - | - | Yes | No |
+| Power removed on VIN and VBAT | Power applied on VIN | - | No<sup>[1]</sup> | Yes | No |
+| Power removed on VIN and VBAT | Power applied on VIN | - | Yes | Yes | No |
 | Power removed on VIN | Power applied on VIN | - | Yes | No | Yes |
 | System.sleep(SLEEP_MODE_DEEP) | Rising edge on WKP pin, or Hard Reset | Yes | Yes/No | No | Yes |
 | System.sleep(SLEEP_MODE_DEEP,10) | RTC alarm after 10 seconds | Yes | Yes/No | No | Yes |
 | System.reset() | Boot after software reset | Yes | Yes/No | No | Yes |
 | Hard reset | Boot after hard reset | Yes | Yes/No | No | Yes |
+
+<sup>[1]</sup> Note: If VBAT is floating when powering up for the first time, SRAM remains uninitialized.  When using this feature for Backup RAM, it is recommended to have VBAT connected to a 3V3 or a known good power source on system first boot.  When using this feature for Extra RAM, it is recommended to jumper VBAT to GND to ensure it always initializes on system first boot.
 
 ### Storing data in Backup RAM (SRAM)
 
@@ -6388,12 +6391,46 @@ as a number:
 Firmware 0.4.7 has a version number 0x00040700
 
 
-Note that
+### buttonPushed()
+
+_Since 0.4.6_
+
+Can be used to determine how long the System button (MODE on Core/Electron, SETUP on Photon) has been pushed.
+
+Returns `uint16_t` as duration button has been held down in milliseconds.
+
+```C++
+// EXAMPLE USAGE
+void button_handler(system_event_t event, int duration, void* )
+{
+    if (!duration) { // just pressed
+        RGB.control(true);
+        RGB.color(255, 0, 255); // MAGENTA
+    }
+    else { // just released
+        RGB.control(false);
+    }
+}
+
+void setup()
+{
+    System.on(button_status, button_handler);
+}
+
+void loop()
+{
+    // it would be nice to fire routine events while
+    // the button is being pushed, rather than rely upon loop
+    if (System.buttonPushed() > 1000) {
+        RGB.color(255, 255, 0); // YELLOW
+    }
+}
+```
 
 
 ### System Cycle Counter
 
-_Since 0.4.6._
+_Since 0.4.6_
 
 The system cycle counter is incremented for each instruction executed. It functions
 in normal code and during interrupts. Since it operates at the clock frequency
